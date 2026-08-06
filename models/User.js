@@ -8,7 +8,8 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['customer', 'kitchen'], default: 'customer' },
   preferences: {
     darkMode: { type: Boolean, default: false },
-    language: { type: String, default: 'en' }
+    language: { type: String, default: 'en' },
+    disableAnimations: { type: Boolean, default: false }
   },
   created_at: { type: Date, default: Date.now }
 });

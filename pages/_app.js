@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -89,9 +89,30 @@ export default function App({ Component, pageProps }) {
     const [itemOptions, setItemOptions] = useState({ size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage', specialInstructions: '', spicyLevel: 0, misoSoup: false });
     const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
     const [user, setUser] = useState(null);
+    const [isExploding, setIsExploding] = useState(false);
+    const [explosionKey, setExplosionKey] = useState(0);
+
+    const explosionParticles = useMemo(() => {
+        return Array.from({ length: 40 }).map((_, i) => {
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 150 + Math.random() * 250; 
+            return {
+                id: i,
+                tx: Math.cos(angle) * velocity,
+                ty: Math.sin(angle) * velocity,
+                rot: (Math.random() - 0.5) * 720,
+                size: 10 + Math.random() * 25,
+                isRed: Math.random() > 0.5,
+                delay: Math.random() * 0.1,
+                duration: 0.5 + Math.random() * 0.3
+            };
+        });
+    }, [explosionKey]);
+
     const [isShaking, setIsShaking] = useState(false);
     const [shakeLevel, setShakeLevel] = useState(0);
     const [loginEmail, setLoginEmail] = useState('');
+    const [disableAnimations, setDisableAnimations] = useState(false);
     const [loginPassword, setLoginPassword] = useState('');
     const [signupName, setSignupName] = useState('');
     const [isLoginMode, setIsLoginMode] = useState(true);
@@ -132,6 +153,10 @@ export default function App({ Component, pageProps }) {
         if (savedDark) setIsDark(JSON.parse(savedDark));
         const savedLang = localStorage.getItem('lang');
         if (savedLang) setLang(savedLang);
+        const savedDisableAnimations = localStorage.getItem('disableAnimations');
+        if (savedDisableAnimations) setDisableAnimations(JSON.parse(savedDisableAnimations));
+        const savedUser = localStorage.getItem('authUser');
+        if (savedUser) setUser(JSON.parse(savedUser));
 
         fetch('/api/menu')
             .then(res => res.json())
@@ -155,6 +180,14 @@ export default function App({ Component, pageProps }) {
         }
     }, [isDark]);
 
+    useEffect(() => {
+        if (disableAnimations) {
+            document.body.classList.add('disable-animations');
+        } else {
+            document.body.classList.remove('disable-animations');
+        }
+    }, [disableAnimations]);
+
     const toggleDarkMode = () => {
         const newDark = !isDark;
         setIsDark(newDark);
@@ -167,11 +200,15 @@ export default function App({ Component, pageProps }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     email: user.email, 
-                    preferences: { darkMode: newDark } 
+                    preferences: { ...user.preferences, darkMode: newDark } 
                 })
             })
             .then(res => {
-                if(res.ok) res.json().then(updatedUser => setUser(prev => ({ ...prev, ...updatedUser })));
+                if(res.ok) res.json().then(updatedUser => setUser(prev => {
+                    const merged = { ...prev, ...updatedUser };
+                    localStorage.setItem('authUser', JSON.stringify(merged));
+                    return merged;
+                }));
             })
             .catch(err => console.error("Failed to sync preference:", err));
         }
@@ -192,13 +229,41 @@ export default function App({ Component, pageProps }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     email: user.email, 
-                    preferences: { language: nextLang } 
+                    preferences: { ...user.preferences, language: nextLang } 
                 })
             })
             .then(res => {
-                if(res.ok) res.json().then(updatedUser => setUser(prev => ({ ...prev, ...updatedUser })));
+                if(res.ok) res.json().then(updatedUser => setUser(prev => {
+                    const merged = { ...prev, ...updatedUser };
+                    localStorage.setItem('authUser', JSON.stringify(merged));
+                    return merged;
+                }));
             })
             .catch(err => console.error("Failed to sync language preference:", err));
+        }
+    };
+
+    const toggleDisableAnimations = () => {
+        const nextVal = !disableAnimations;
+        setDisableAnimations(nextVal);
+        localStorage.setItem('disableAnimations', nextVal);
+        if (user) {
+            fetch('/api/update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email: user.email, 
+                    preferences: { ...user.preferences, disableAnimations: nextVal } 
+                })
+            })
+            .then(res => {
+                if(res.ok) res.json().then(updatedUser => setUser(prev => {
+                    const merged = { ...prev, ...updatedUser };
+                    localStorage.setItem('authUser', JSON.stringify(merged));
+                    return merged;
+                }));
+            })
+            .catch(err => console.error("Failed to sync disableAnimations:", err));
         }
     };
 
@@ -252,7 +317,9 @@ export default function App({ Component, pageProps }) {
                 optionTextTh += optionTextTh ? `, ${sauceTh}` : `${sauceTh}`;
             }
             if (options.spicyLevel !== undefined && item.isSpicy) {
-                if (options.spicyLevel >= 3) {
+                if (options.spicyLevel === 5) {
+                    finalPrice += 10;
+                } else if (options.spicyLevel >= 3) {
                     finalPrice += 5;
                 }
                 const spicyLabelEn = options.spicyLevel === 0 ? 'No Spicy' : `Spicy Lv.${options.spicyLevel}`;
@@ -341,6 +408,11 @@ export default function App({ Component, pageProps }) {
                     setLang(userData.preferences.language);
                     localStorage.setItem('lang', userData.preferences.language);
                 }
+                if (userData.preferences?.disableAnimations !== undefined) {
+                    setDisableAnimations(userData.preferences.disableAnimations);
+                    localStorage.setItem('disableAnimations', userData.preferences.disableAnimations);
+                }
+                localStorage.setItem('authUser', JSON.stringify(userData));
                 setIsUserPanelOpen(false);
                 setLoginPassword(''); // clear password for safety
             } else {
@@ -502,7 +574,9 @@ export default function App({ Component, pageProps }) {
             if (itemOptions.size === 'Super Special') currentModalPrice += 10;
             else if (itemOptions.size === 'Special') currentModalPrice += 5;
         }
-        if (itemOptions.spicyLevel >= 3 && itemToRender.isSpicy) {
+        if (itemOptions.spicyLevel === 5 && itemToRender.isSpicy) {
+            currentModalPrice += 10;
+        } else if (itemOptions.spicyLevel >= 3 && itemToRender.isSpicy) {
             currentModalPrice += 5;
         }
     }
@@ -513,14 +587,36 @@ export default function App({ Component, pageProps }) {
                 <title>Ramen Aroy | Cozy Ordering</title>
             </Head>
             <style jsx global>{`
+                .disable-animations *, .disable-animations *::before, .disable-animations *::after {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                    scroll-behavior: auto !important;
+                }
+                
                 .animate-shake-1 { animation: shake1 0.4s ease-in-out; }
                 .animate-shake-2 { animation: shake2 0.4s ease-in-out; }
                 .animate-shake-3 { animation: shake3 0.4s ease-in-out; }
                 .animate-shake-4 { animation: shake4 0.4s ease-in-out; }
-                @keyframes shake1 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-2px); } 40%, 80% { transform: scale(1) translateX(2px); } }
-                @keyframes shake2 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-4px) rotate(-1deg); } 40%, 80% { transform: scale(1) translateX(4px) rotate(1deg); } }
-                @keyframes shake3 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-8px) rotate(-2deg); } 40%, 80% { transform: scale(1) translateX(8px) rotate(2deg); } }
-                @keyframes shake4 { 0%, 100% { transform: scale(1) translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: scale(1) translateX(-12px) translateY(-2px) rotate(-4deg); } 20%, 40%, 60%, 80% { transform: scale(1) translateX(12px) translateY(2px) rotate(4deg); } }
+                .animate-shake-5 { animation: shake5 0.5s ease-in-out; }
+                @keyframes shake1 { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+                @keyframes shake2 { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-4px) rotate(-1deg); } 75% { transform: translateX(4px) rotate(1deg); } }
+                @keyframes shake3 { 0%, 100% { transform: translateX(0) rotate(0); } 20%, 60% { transform: translateX(-6px) rotate(-2deg); } 40%, 80% { transform: translateX(6px) rotate(2deg); } }
+                @keyframes shake4 { 0%, 100% { transform: translateX(0) rotate(0) translateY(0); } 16%, 50%, 83% { transform: translateX(-10px) rotate(-3deg) translateY(-1px); } 33%, 66% { transform: translateX(10px) rotate(3deg) translateY(1px); } }
+                @keyframes shake5 { 0%, 100% { transform: translateX(0) rotate(0) translateY(0) scale(1); } 12%, 37%, 62%, 87% { transform: translateX(-15px) rotate(-5deg) translateY(-2px) scale(1.02); } 25%, 50%, 75% { transform: translateX(15px) rotate(5deg) translateY(2px) scale(1.02); } }
+                
+                @keyframes explode-cube {
+                    0% { transform: translate(0, 0) rotate(0deg) scale(0); opacity: 1; }
+                    20% { transform: translate(calc(var(--tx) * 0.2), calc(var(--ty) * 0.2)) rotate(calc(var(--rot) * 0.2)) scale(1); opacity: 1; }
+                    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.5); opacity: 0; }
+                }
+                .animate-explode-cube { animation: explode-cube linear forwards; }
+                
+                @keyframes pulse-flash {
+                    0% { transform: scale(0); opacity: 0.8; }
+                    100% { transform: scale(2); opacity: 0; }
+                }
+                .animate-pulse-flash { animation: pulse-flash 0.5s ease-out forwards; }
                 
                 @keyframes bounce-char {
                     0% { transform: translateY(0); }
@@ -927,7 +1023,14 @@ export default function App({ Component, pageProps }) {
                                         <i className="ph-bold ph-cooking-pot"></i> Open Kitchen Dashboard
                                     </button>
                                 )}
-                                <button onClick={() => { setUser(null); setLoginEmail(''); }} className="w-full py-4 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all">Sign Out</button>
+                                <div className="p-4 bg-warmBg dark:bg-warmDarkBg rounded-2xl">
+                                    <h4 className="font-bold mb-3">{lang === 'th' ? 'การตั้งค่า' : 'Preferences'}</h4>
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="font-semibold">{lang === 'th' ? 'ปิดเอฟเฟกต์แอนิเมชัน' : 'Disable Animations'}</span>
+                                        <input type="checkbox" className="w-5 h-5 accent-pastelOrange rounded-md cursor-pointer" checked={disableAnimations} onChange={toggleDisableAnimations} />
+                                    </label>
+                                </div>
+                                <button onClick={() => { setUser(null); setLoginEmail(''); localStorage.removeItem('authUser'); }} className="w-full py-4 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all">Sign Out</button>
                             </div>
                         )}
                     </div>
@@ -935,9 +1038,33 @@ export default function App({ Component, pageProps }) {
             </div>
 
             {/* Item Options Modal */}
-            <div className={`fixed inset-0 bg-textDark/40 dark:bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 flex items-end md:items-center justify-center p-0 md:p-4 ${isModalVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSelectedItem(null)}>
+            <div className={`fixed inset-0 bg-textDark/40 dark:bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 flex items-end md:items-center justify-center p-0 md:p-4 overflow-hidden ${isModalVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSelectedItem(null)}>
+                
+                {/* Level 5 Explosion Background */}
+                {itemToRender && isExploding && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
+                        {explosionParticles.map(p => (
+                            <div 
+                                key={p.id}
+                                className={`absolute animate-explode-cube rounded-sm shadow-sm ${p.isRed ? 'bg-red-500 shadow-red-500/50' : 'bg-orange-500 shadow-orange-500/50'}`}
+                                style={{
+                                    '--tx': `${p.tx}px`,
+                                    '--ty': `${p.ty}px`,
+                                    '--rot': `${p.rot}deg`,
+                                    width: p.size,
+                                    height: p.size,
+                                    animationDuration: `${p.duration}s`,
+                                    animationDelay: `${p.delay}s`
+                                }}
+                            />
+                        ))}
+                        <div className="absolute w-[80vw] h-[80vw] md:w-[40vw] md:h-[40vw] border-[30px] border-orange-500/30 rounded-full animate-pulse-flash pointer-events-none"></div>
+                        <div className="absolute w-[60vw] h-[60vw] md:w-[30vw] md:h-[30vw] border-[20px] border-red-500/40 rounded-full animate-pulse-flash pointer-events-none" style={{ animationDelay: '0.1s' }}></div>
+                    </div>
+                )}
+
                 {itemToRender && (
-                    <div className={`w-full max-w-md rounded-t-3xl md:rounded-3xl flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden transition-all duration-300 ${isModalVisible ? 'translate-y-0 md:scale-100' : 'translate-y-full md:translate-y-0 md:scale-95'} ${isShaking ? 'animate-shake-' + shakeLevel : ''} ${itemOptions.spicyLevel >= 4 ? 'bg-red-100 dark:bg-red-950 shadow-[0_-10px_40px_rgba(239,68,68,0.3)] md:shadow-[0_10px_40px_rgba(239,68,68,0.5)] border-t md:border border-red-500/40' : itemOptions.spicyLevel === 3 ? 'bg-[#fff0f0] dark:bg-[#361c1c] shadow-[0_-10px_40px_rgba(239,68,68,0.15)] md:shadow-[0_10px_40px_rgba(239,68,68,0.3)] border-t md:border border-red-500/20' : itemOptions.spicyLevel > 0 ? 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(255,255,255,0.4)] md:shadow-[0_10px_40px_rgba(255,255,255,0.6)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.15)] border-t md:border border-white/40 dark:border-white/10' : 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl border-t md:border border-transparent dark:border-white/5'}`} onClick={e => e.stopPropagation()}>
+                    <div className={`w-full max-w-md relative z-10 rounded-t-3xl md:rounded-3xl flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden transition-all duration-300 ${isModalVisible ? 'translate-y-0 md:scale-100' : 'translate-y-full md:translate-y-0 md:scale-95'} ${isShaking ? 'animate-shake-' + shakeLevel : ''} ${itemOptions.spicyLevel === 5 ? 'bg-purple-100 dark:bg-purple-950 shadow-[0_-20px_80px_rgba(168,85,247,0.6)] md:shadow-[0_20px_80px_rgba(168,85,247,0.8)] border-t md:border border-purple-500 shadow-[inset_0_0_20px_rgba(168,85,247,0.3)]' : itemOptions.spicyLevel >= 4 ? 'bg-red-100 dark:bg-red-950 shadow-[0_-10px_40px_rgba(239,68,68,0.3)] md:shadow-[0_10px_40px_rgba(239,68,68,0.5)] border-t md:border border-red-500/40' : itemOptions.spicyLevel === 3 ? 'bg-[#fff0f0] dark:bg-[#361c1c] shadow-[0_-10px_40px_rgba(239,68,68,0.15)] md:shadow-[0_10px_40px_rgba(239,68,68,0.3)] border-t md:border border-red-500/20' : itemOptions.spicyLevel > 0 ? 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(255,255,255,0.4)] md:shadow-[0_10px_40px_rgba(255,255,255,0.6)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.15)] border-t md:border border-white/40 dark:border-white/10' : 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl border-t md:border border-transparent dark:border-white/5'}`} onClick={e => e.stopPropagation()}>
                         
                         <div className="overflow-y-auto flex-1">
                             <div className="relative h-40 md:h-48 shrink-0">
@@ -1025,25 +1152,30 @@ export default function App({ Component, pageProps }) {
                                         <h4 className="font-bold mb-3 flex items-center justify-between">
                                             {lang === 'th' ? 'ระดับความเผ็ด' : 'Spicy Level'}
                                         </h4>
-                                        <div className="grid grid-cols-5 gap-1 sm:gap-2">
-                                            {[0, 1, 2, 3, 4].map(level => {
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-2">
+                                            {[0, 1, 2, 3, 4, 5].map(level => {
                                                 const labelEn = level === 0 ? 'No Spicy' : `Lv.${level}`;
                                                 const labelTh = level === 0 ? 'ไม่เผ็ด' : `Lv.${level}`;
                                                 return (
                                                     <label key={`spicy-${level}`} className="cursor-pointer">
                                                         <input type="radio" name="spicyLevel" className="peer sr-only" checked={itemOptions.spicyLevel === level} onChange={() => {
                                                             setItemOptions({...itemOptions, spicyLevel: level});
+                                                            if (level === 5) {
+                                                                setExplosionKey(prev => prev + 1);
+                                                                setIsExploding(true);
+                                                                setTimeout(() => setIsExploding(false), 1000);
+                                                            }
                                                             if (level > 0) {
                                                                 setShakeLevel(level);
                                                                 setIsShaking(false);
                                                                 setTimeout(() => setIsShaking(true), 10);
-                                                                setTimeout(() => setIsShaking(false), 410);
+                                                                setTimeout(() => setIsShaking(false), level === 5 ? 510 : 410);
                                                             }
                                                         }} />
-                                                        <div className="text-center py-2 rounded-xl border-2 border-transparent bg-warmBg dark:bg-warmDarkBg peer-checked:border-red-500 peer-checked:bg-red-500/10 peer-checked:text-red-500 transition-all font-bold text-[9px] sm:text-[11px] hover:scale-[1.05] active:scale-95 flex flex-col items-center gap-0.5 sm:gap-1 h-full justify-center">
-                                                            <i className={`ph-fill ph-fire text-sm sm:text-base ${level > 0 ? (level > 2 ? 'text-red-600' : 'text-orange-500') : 'opacity-30 text-gray-500'}`}></i>
+                                                        <div className={`text-center py-2 rounded-xl border-2 transition-all font-bold text-[9px] sm:text-[11px] hover:scale-[1.05] active:scale-95 flex flex-col items-center gap-0.5 sm:gap-1 h-full justify-center ${itemOptions.spicyLevel === level ? (level === 5 ? 'border-purple-500 bg-purple-500/10 text-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]') : 'border-transparent bg-warmBg dark:bg-warmDarkBg'}`}>
+                                                            <i className={`ph-fill ph-fire text-sm sm:text-base ${level > 0 ? (level === 5 ? 'text-purple-500 animate-[pulse_1s_ease-in-out_infinite]' : level > 2 ? 'text-red-600' : 'text-orange-500') : 'opacity-30 text-gray-500'}`}></i>
                                                             <span className="leading-tight">{lang === 'th' ? labelTh : labelEn}</span>
-                                                            {level >= 3 && <span className="text-[8px] sm:text-[9px] text-red-500 font-black mt-[-2px]">+฿5</span>}
+                                                            {level === 5 ? <span className="text-[8px] sm:text-[9px] text-purple-500 font-black mt-[-2px]">+฿10</span> : level >= 3 ? <span className="text-[8px] sm:text-[9px] text-red-500 font-black mt-[-2px]">+฿5</span> : null}
                                                         </div>
                                                     </label>
                                                 );
