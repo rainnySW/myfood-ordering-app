@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -6,6 +6,59 @@ import Image from 'next/image';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '../utils/cropImage';
 import { translations } from '../utils/i18n';
+
+const AnimatedPriceButton = ({ price, lang, isEditing, onClick }) => {
+    const [displayPrice, setDisplayPrice] = useState(price);
+    const [animationState, setAnimationState] = useState('none');
+    const [key, setKey] = useState(0);
+    const prevPriceRef = useRef(price);
+
+    useEffect(() => {
+        if (price > prevPriceRef.current) {
+            setKey(prev => prev + 1);
+            setAnimationState('increase');
+            const timeout = setTimeout(() => setAnimationState('none'), 500);
+            setDisplayPrice(price);
+            prevPriceRef.current = price;
+            return () => clearTimeout(timeout);
+        } else if (price < prevPriceRef.current) {
+            setKey(prev => prev + 1);
+            setAnimationState('decrease');
+            const timeout = setTimeout(() => setAnimationState('none'), 500);
+            setDisplayPrice(price);
+            prevPriceRef.current = price;
+            return () => clearTimeout(timeout);
+        } else {
+            setDisplayPrice(price);
+            prevPriceRef.current = price;
+        }
+    }, [price]);
+
+    const fullText = `฿${displayPrice}`;
+    const isDecreasing = animationState === 'decrease';
+    const isIncreasing = animationState === 'increase';
+
+    return (
+        <button 
+            onClick={onClick}
+            className="w-full bg-pastelOrange dark:bg-darkAccent text-textDark dark:text-textLight py-4 rounded-2xl font-bold text-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden shadow-sm"
+        >
+            <i className={isEditing ? "ph-bold ph-pencil-simple" : "ph-bold ph-plus"}></i> 
+            <div className={`flex transition-colors duration-300 ${isDecreasing ? 'text-red-600 dark:text-red-400' : ''}`}>
+                {fullText.split('').map((char, idx) => (
+                    <span 
+                        key={`${key}-${idx}`} 
+                        className={isIncreasing ? "inline-block animate-bounce-char" : "inline-block"} 
+                        style={isIncreasing ? { animationDelay: `${idx * 0.03}s` } : {}}
+                    >
+                        {char === ' ' ? '\u00A0' : char}
+                    </span>
+                ))}
+            </div>
+        </button>
+    );
+};
+
 export default function App({ Component, pageProps }) {
     const router = useRouter();
 
@@ -20,9 +73,24 @@ export default function App({ Component, pageProps }) {
     const [menuItems, setMenuItems] = useState([]);
     
     const [selectedItem, setSelectedItem] = useState(null);
-    const [itemOptions, setItemOptions] = useState({ size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage' });
+    const [renderedItem, setRenderedItem] = useState(null);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    
+    useEffect(() => {
+        if (selectedItem) {
+            setRenderedItem(selectedItem);
+            setTimeout(() => setIsModalVisible(true), 10);
+        } else {
+            setIsModalVisible(false);
+            const timeout = setTimeout(() => setRenderedItem(null), 300);
+            return () => clearTimeout(timeout);
+        }
+    }, [selectedItem]);
+    const [itemOptions, setItemOptions] = useState({ size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage', specialInstructions: '', spicyLevel: 0, misoSoup: false });
     const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
     const [user, setUser] = useState(null);
+    const [isShaking, setIsShaking] = useState(false);
+    const [shakeLevel, setShakeLevel] = useState(0);
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [signupName, setSignupName] = useState('');
@@ -169,6 +237,11 @@ export default function App({ Component, pageProps }) {
                 optionText += optionText ? ', Add Egg' : 'Add Egg';
                 optionTextTh += optionTextTh ? ', เพิ่มไข่' : 'เพิ่มไข่';
             }
+            if (options.misoSoup && item.name === 'Tsukemen Dipping Noodles') {
+                finalPrice += 20;
+                optionText += optionText ? ', Miso Soup' : 'Miso Soup';
+                optionTextTh += optionTextTh ? ', ซุปมิโซะ' : 'ซุปมิโซะ';
+            }
             if (item.category === 'Drinks' && options.sweetness) {
                 optionText += optionText ? `, ${options.sweetness} Sweet` : `${options.sweetness} Sweet`;
                 optionTextTh += optionTextTh ? `, หวาน ${options.sweetness}` : `หวาน ${options.sweetness}`;
@@ -178,9 +251,18 @@ export default function App({ Component, pageProps }) {
                 const sauceTh = options.sauce === 'Karaage' ? 'ซอสคาราเกะ' : (options.sauce === 'Ketchup' ? 'ซอสมะเขือเทศ' : 'ซาวร์ครีม');
                 optionTextTh += optionTextTh ? `, ${sauceTh}` : `${sauceTh}`;
             }
+            if (options.spicyLevel !== undefined && item.isSpicy) {
+                if (options.spicyLevel >= 3) {
+                    finalPrice += 5;
+                }
+                const spicyLabelEn = options.spicyLevel === 0 ? 'No Spicy' : `Spicy Lv.${options.spicyLevel}`;
+                const spicyLabelTh = options.spicyLevel === 0 ? 'ไม่เผ็ด' : `เผ็ดระดับ ${options.spicyLevel}`;
+                optionText += optionText ? `, ${spicyLabelEn}` : `${spicyLabelEn}`;
+                optionTextTh += optionTextTh ? `, ${spicyLabelTh}` : `${spicyLabelTh}`;
+            }
         }
 
-        const cartItemId = item._id + (optionText ? `-${optionText}` : '-Default');
+        const cartItemId = item._id + (optionText ? `-${optionText}` : '-Default') + (options?.specialInstructions ? `-${options.specialInstructions}` : '');
         const displayName = optionText ? `${item.name} (${optionText})` : item.name;
         const displayNameTh = item.name_th ? (optionTextTh ? `${item.name_th} (${optionTextTh})` : item.name_th) : displayName;
 
@@ -365,10 +447,10 @@ export default function App({ Component, pageProps }) {
                 name: item.name,
                 price_per_unit: item.price,
                 quantity: item.qty,
-                subtotal: item.price * item.qty
+                subtotal: item.price * item.qty,
+                special_instructions: item.options?.specialInstructions || ''
             })),
-            total_amount: cartTotal,
-            payment_slip_url: 'dummy_slip_url_for_now'
+            total_amount: cartTotal
         };
 
         try {
@@ -406,11 +488,51 @@ export default function App({ Component, pageProps }) {
         }, 300);
     };
 
+    const itemToRender = selectedItem || renderedItem;
+    let currentModalPrice = 0;
+    if (itemToRender) {
+        currentModalPrice = itemToRender.price;
+        if (itemToRender.category === 'Ramen') {
+            if (itemOptions.size === 'Special') currentModalPrice += 15;
+            if (itemOptions.egg) currentModalPrice += 15;
+            if (itemOptions.misoSoup && itemToRender.name === 'Tsukemen Dipping Noodles') {
+                currentModalPrice += 20;
+            }
+        } else if (itemToRender.category === 'Sides') {
+            if (itemOptions.size === 'Super Special') currentModalPrice += 10;
+            else if (itemOptions.size === 'Special') currentModalPrice += 5;
+        }
+        if (itemOptions.spicyLevel >= 3 && itemToRender.isSpicy) {
+            currentModalPrice += 5;
+        }
+    }
+
     return (
         <div className="min-h-screen relative pb-24 md:pb-0">
             <Head>
                 <title>Ramen Aroy | Cozy Ordering</title>
             </Head>
+            <style jsx global>{`
+                .animate-shake-1 { animation: shake1 0.4s ease-in-out; }
+                .animate-shake-2 { animation: shake2 0.4s ease-in-out; }
+                .animate-shake-3 { animation: shake3 0.4s ease-in-out; }
+                .animate-shake-4 { animation: shake4 0.4s ease-in-out; }
+                @keyframes shake1 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-2px); } 40%, 80% { transform: scale(1) translateX(2px); } }
+                @keyframes shake2 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-4px) rotate(-1deg); } 40%, 80% { transform: scale(1) translateX(4px) rotate(1deg); } }
+                @keyframes shake3 { 0%, 100% { transform: scale(1) translateX(0); } 20%, 60% { transform: scale(1) translateX(-8px) rotate(-2deg); } 40%, 80% { transform: scale(1) translateX(8px) rotate(2deg); } }
+                @keyframes shake4 { 0%, 100% { transform: scale(1) translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: scale(1) translateX(-12px) translateY(-2px) rotate(-4deg); } 20%, 40%, 60%, 80% { transform: scale(1) translateX(12px) translateY(2px) rotate(4deg); } }
+                
+                @keyframes bounce-char {
+                    0% { transform: translateY(0); }
+                    30% { transform: translateY(-5px); }
+                    50% { transform: translateY(0); }
+                    70% { transform: translateY(-2px); }
+                    100% { transform: translateY(0); }
+                }
+                .animate-bounce-char {
+                    animation: bounce-char 0.5s ease-in-out forwards;
+                }
+            `}</style>
             {/* Top Navigation (PC Only) */}
             <nav className="hidden md:flex sticky top-0 z-40 backdrop-blur-md bg-warmBg/80 dark:bg-warmDarkBg/80 border-b border-pastelOrange/20 dark:border-white/5 transition-colors duration-500">
                 <div className="max-w-6xl w-full mx-auto px-4 h-16 flex items-center justify-between">
@@ -420,10 +542,10 @@ export default function App({ Component, pageProps }) {
                             <span className="text-xl font-bold tracking-tight">Ramen Aroy</span>
                         </Link>
                         <div className="flex gap-6 font-bold text-sm">
-                            <Link href="/" className={`hover:text-pastelOrange transition-colors ${router.pathname === '/' ? 'text-pastelOrange' : 'opacity-70'}`}>{t('home')}</Link>
-                            <Link href="/menu" className={`hover:text-pastelOrange transition-colors ${router.pathname === '/menu' ? 'text-pastelOrange' : 'opacity-70'}`}>{t('menu')}</Link>
+                            <Link href="/" className={`hover:text-pastelOrangeDark dark:hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors ${router.pathname === '/' ? 'text-pastelOrangeDark dark:text-pastelOrange' : 'opacity-70'}`}>{t('home')}</Link>
+                            <Link href="/menu" className={`hover:text-pastelOrangeDark dark:hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors ${router.pathname === '/menu' ? 'text-pastelOrangeDark dark:text-pastelOrange' : 'opacity-70'}`}>{t('menu')}</Link>
                             {user?.role === 'kitchen' && (
-                                <Link href="/kitchen" className={`hover:text-pastelOrange transition-colors ${router.pathname === '/kitchen' ? 'text-pastelOrange' : 'opacity-70'}`}>{t('kitchen')}</Link>
+                                <Link href="/kitchen" className={`hover:text-pastelOrangeDark dark:hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors ${router.pathname === '/kitchen' ? 'text-pastelOrangeDark dark:text-pastelOrange' : 'opacity-70'}`}>{t('kitchen')}</Link>
                             )}
                         </div>
                     </div>
@@ -516,19 +638,19 @@ export default function App({ Component, pageProps }) {
             {/* Mobile Bottom Navigation */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-cardLight/90 dark:bg-cardDark/90 backdrop-blur-lg border-t border-pastelOrange/20 dark:border-white/5 z-40 pb-safe">
                 <div className="flex justify-around items-center h-16">
-                    <Link href="/" className={`flex flex-col items-center gap-1 p-2 transition-colors ${router.pathname === '/' ? 'text-pastelOrange dark:text-pastelOrange' : 'text-textDark/40 dark:text-textLight/40 hover:text-pastelOrange'}`}>
+                    <Link href="/" className={`flex flex-col items-center gap-1 p-2 transition-colors ${router.pathname === '/' ? 'text-pastelOrangeDark dark:text-pastelOrange bg-pastelOrange/20 dark:bg-pastelOrange/10 rounded-2xl' : 'text-textDark/40 dark:text-textLight/40 hover:text-pastelOrangeDark dark:hover:text-pastelOrange'}`}>
                         <i className="ph-fill ph-house text-2xl"></i>
                         <span className="text-[10px] font-bold tracking-wider">{lang === 'th' ? 'หน้าแรก' : 'Home'}</span>
                     </Link>
-                    <Link href="/menu" className={`flex flex-col items-center gap-1 p-2 transition-colors ${router.pathname === '/menu' ? 'text-pastelOrange dark:text-pastelOrange' : 'text-textDark/40 dark:text-textLight/40 hover:text-pastelOrange'}`}>
+                    <Link href="/menu" className={`flex flex-col items-center gap-1 p-2 transition-colors ${router.pathname === '/menu' ? 'text-pastelOrangeDark dark:text-pastelOrange bg-pastelOrange/20 dark:bg-pastelOrange/10 rounded-2xl' : 'text-textDark/40 dark:text-textLight/40 hover:text-pastelOrangeDark dark:hover:text-pastelOrange'}`}>
                         <i className="ph-fill ph-magnifying-glass text-2xl"></i>
                         <span className="text-[10px] font-bold tracking-wider">{lang === 'th' ? 'เมนู' : 'Menu'}</span>
                     </Link>
-                    <button onClick={() => setIsUserPanelOpen(true)} className="flex flex-col items-center gap-1 p-2 text-textDark/40 dark:text-textLight/40 hover:text-pastelOrange transition-colors">
+                    <button onClick={() => setIsUserPanelOpen(true)} className="flex flex-col items-center gap-1 p-2 text-textDark/40 dark:text-textLight/40 hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors">
                         <i className="ph-fill ph-user text-2xl"></i>
                         <span className="text-[10px] font-bold tracking-wider">{lang === 'th' ? 'โปรไฟล์' : 'Profile'}</span>
                     </button>
-                    <button onClick={() => setIsCartOpen(true)} className="relative flex flex-col items-center gap-1 p-2 text-textDark/40 dark:text-textLight/40 hover:text-pastelOrange transition-colors">
+                    <button onClick={() => setIsCartOpen(true)} className="relative flex flex-col items-center gap-1 p-2 text-textDark/40 dark:text-textLight/40 hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors">
                         <i className="ph-fill ph-shopping-bag text-2xl"></i>
                         <span className="text-[10px] font-bold tracking-wider">{lang === 'th' ? 'ตะกร้า' : 'Cart'}</span>
                         {cartCount > 0 && (
@@ -577,8 +699,12 @@ export default function App({ Component, pageProps }) {
                                                 <button onClick={() => {
                                                     const baseItem = menuItems.find(m => m._id === item._id);
                                                     if(baseItem) {
+                                                        if (item.options) {
+                                                            setItemOptions(item.options);
+                                                        } else {
+                                                            setItemOptions({ size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage', specialInstructions: '', spicyLevel: 0, misoSoup: false });
+                                                        }
                                                         setSelectedItem({...baseItem, isEditingCartItemId: item.cartItemId});
-                                                        setItemOptions(item.options || { size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage' });
                                                     }
                                                 }} className="p-1.5 -mt-1 -mr-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#D97736] dark:text-pastelOrange transition-colors">
                                                     <i className="ph-bold ph-pencil-simple text-sm"></i>
@@ -604,7 +730,7 @@ export default function App({ Component, pageProps }) {
                                         value={tableNumber}
                                         onChange={(e) => setTableNumber(e.target.value)}
                                         placeholder="e.g. 12" 
-                                        className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl border-none focus:ring-2 focus:ring-pastelOrange outline-none transition-all" 
+                                        className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl border-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange outline-none transition-all" 
                                     />
                                 </div>
                                 <div className="p-4 bg-pastelOrange/20 dark:bg-pastelOrange/10 rounded-2xl text-center">
@@ -613,15 +739,6 @@ export default function App({ Component, pageProps }) {
                                         <i className="ph-thin ph-qr-code text-6xl text-textDark"></i>
                                     </div>
                                     <p className="text-xs mt-2 opacity-70">Scan to pay ฿{cartTotal}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-2 opacity-80">Upload Payment Slip <span className="text-red-500">*</span></label>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*"
-                                        required 
-                                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pastelOrange file:text-textDark hover:file:bg-[#FFC899]"
-                                    />
                                 </div>
                             </form>
                         ) : checkoutStep === 'success' ? (
@@ -743,16 +860,16 @@ export default function App({ Component, pageProps }) {
                                 <p className="text-center opacity-70 mb-8">{isLoginMode ? (lang === 'th' ? 'เข้าสู่ระบบเพื่อสั่งอาหารได้อย่างรวดเร็ว' : 'Sign in for fast checkout.') : (lang === 'th' ? 'เข้าร่วมกับเราเพื่อประสบการณ์แสนอบอุ่น' : 'Join us for a cozy experience.')}</p>
                                 
                                 {!isLoginMode && (
-                                    <input type="text" required value={signupName} onChange={e => setSignupName(e.target.value)} placeholder="Username" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrange" />
+                                    <input type="text" required value={signupName} onChange={e => setSignupName(e.target.value)} placeholder="Username" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
                                 )}
-                                <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder={isLoginMode ? "Email or Username" : "Email Address"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrange" />
-                                <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrange" />
+                                <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder={isLoginMode ? "Email or Username" : "Email Address"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
+                                <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
                                 
                                 <button type="submit" className="w-full mt-4 bg-pastelOrange text-textDark py-4 rounded-2xl font-bold hover:opacity-90 active:scale-95 transition-all">
                                     {isLoginMode ? 'Sign In' : 'Sign Up'}
                                 </button>
                                 
-                                <button type="button" onClick={() => setIsLoginMode(!isLoginMode)} className="w-full text-sm font-bold opacity-70 hover:opacity-100 hover:text-pastelOrange transition-colors mt-2">
+                                <button type="button" onClick={() => setIsLoginMode(!isLoginMode)} className="w-full text-sm font-bold opacity-70 hover:opacity-100 hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors mt-2">
                                     {isLoginMode ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
                                 </button>
                             </form>
@@ -789,7 +906,7 @@ export default function App({ Component, pageProps }) {
                                                 onChange={e => setEditNameValue(e.target.value)} 
                                                 onBlur={handleNameUpdate}
                                                 onKeyDown={e => e.key === 'Enter' && handleNameUpdate()}
-                                                className="bg-warmBg dark:bg-warmDarkBg px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-pastelOrange text-center font-bold text-xl w-48" 
+                                                className="bg-warmBg dark:bg-warmDarkBg px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-center font-bold text-xl w-48" 
                                             />
                                         ) : (
                                             <>
@@ -818,21 +935,23 @@ export default function App({ Component, pageProps }) {
             </div>
 
             {/* Item Options Modal */}
-            <div className={`fixed inset-0 bg-textDark/40 dark:bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 flex items-center justify-center p-4 ${selectedItem ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSelectedItem(null)}>
-                {selectedItem && (
-                    <div className={`bg-cardLight dark:bg-cardDark w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-transform duration-300 ${selectedItem ? 'scale-100' : 'scale-95'}`} onClick={e => e.stopPropagation()}>
-                        <div className="relative h-48">
-                            <Image src={selectedItem.image_url} alt={selectedItem.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" />
+            <div className={`fixed inset-0 bg-textDark/40 dark:bg-black/80 backdrop-blur-sm z-50 transition-opacity duration-300 flex items-end md:items-center justify-center p-0 md:p-4 ${isModalVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSelectedItem(null)}>
+                {itemToRender && (
+                    <div className={`w-full max-w-md rounded-t-3xl md:rounded-3xl flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden transition-all duration-300 ${isModalVisible ? 'translate-y-0 md:scale-100' : 'translate-y-full md:translate-y-0 md:scale-95'} ${isShaking ? 'animate-shake-' + shakeLevel : ''} ${itemOptions.spicyLevel >= 4 ? 'bg-red-100 dark:bg-red-950 shadow-[0_-10px_40px_rgba(239,68,68,0.3)] md:shadow-[0_10px_40px_rgba(239,68,68,0.5)] border-t md:border border-red-500/40' : itemOptions.spicyLevel === 3 ? 'bg-[#fff0f0] dark:bg-[#361c1c] shadow-[0_-10px_40px_rgba(239,68,68,0.15)] md:shadow-[0_10px_40px_rgba(239,68,68,0.3)] border-t md:border border-red-500/20' : itemOptions.spicyLevel > 0 ? 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(255,255,255,0.4)] md:shadow-[0_10px_40px_rgba(255,255,255,0.6)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.15)] border-t md:border border-white/40 dark:border-white/10' : 'bg-cardLight dark:bg-cardDark shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl border-t md:border border-transparent dark:border-white/5'}`} onClick={e => e.stopPropagation()}>
+                        
+                        <div className="overflow-y-auto flex-1">
+                            <div className="relative h-40 md:h-48 shrink-0">
+                            <Image src={itemToRender.image_url} alt={itemToRender.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" />
                             <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10">
                                 <i className="ph-bold ph-x text-lg"></i>
                             </button>
                         </div>
-                        <div className="p-6">
-                            <h3 className="text-2xl font-bold mb-1">{lang === 'th' && selectedItem.name_th ? selectedItem.name_th : selectedItem.name}</h3>
-                            <p className="opacity-70 text-sm mb-6">{lang === 'th' && selectedItem.description_th ? selectedItem.description_th : selectedItem.description}</p>
+                        <div className="p-5 md:p-6 pb-4">
+                            <h3 className="text-2xl font-bold mb-1">{lang === 'th' && itemToRender.name_th ? itemToRender.name_th : itemToRender.name}</h3>
+                            <p className="opacity-70 text-sm mb-6">{lang === 'th' && itemToRender.description_th ? itemToRender.description_th : itemToRender.description}</p>
                             
                             <div className="space-y-6">
-                                {selectedItem.category !== 'Drinks' && (
+                                {itemToRender.category !== 'Drinks' && (
                                     <div>
                                         <h4 className="font-bold mb-3 flex items-center justify-between">
                                             {lang === 'th' ? 'ขนาด' : 'Size'}
@@ -842,20 +961,20 @@ export default function App({ Component, pageProps }) {
                                             <label className="flex-1 cursor-pointer">
                                                 <input type="radio" name="size" className="peer sr-only" checked={itemOptions.size === 'Normal'} onChange={() => setItemOptions({...itemOptions, size: 'Normal'})} />
                                                 <div className="text-center p-3 rounded-2xl border-2 border-transparent bg-warmBg dark:bg-warmDarkBg peer-checked:border-pastelOrange peer-checked:bg-pastelOrange/20 peer-checked:shadow-[0_4px_15px_rgba(255,200,153,0.4)] dark:peer-checked:shadow-[0_4px_15px_rgba(217,119,54,0.3)] transition-all font-semibold hover:scale-[1.02] active:scale-95">
-                                                    {lang === 'th' ? 'ธรรมดา' : 'Normal'} <span className="block text-xs opacity-70">฿{selectedItem.price}</span>
+                                                    {lang === 'th' ? 'ธรรมดา' : 'Normal'} <span className="block text-xs opacity-70">฿{itemToRender.price}</span>
                                                 </div>
                                             </label>
                                             <label className="flex-1 cursor-pointer">
                                                 <input type="radio" name="size" className="peer sr-only" checked={itemOptions.size === 'Special'} onChange={() => setItemOptions({...itemOptions, size: 'Special'})} />
                                                 <div className="text-center p-3 rounded-2xl border-2 border-transparent bg-warmBg dark:bg-warmDarkBg peer-checked:border-pastelOrange peer-checked:bg-pastelOrange/20 peer-checked:shadow-[0_4px_15px_rgba(255,200,153,0.4)] dark:peer-checked:shadow-[0_4px_15px_rgba(217,119,54,0.3)] transition-all font-semibold hover:scale-[1.02] active:scale-95">
-                                                    {lang === 'th' ? 'พิเศษ' : 'Special'} <span className="block text-xs text-pastelOrange">+{selectedItem.category === 'Ramen' ? '฿15' : '฿5'}</span>
+                                                    {lang === 'th' ? 'พิเศษ' : 'Special'} <span className="block text-xs font-bold text-pastelOrangeDark dark:text-pastelOrange">+{itemToRender.category === 'Ramen' ? '฿15' : '฿5'}</span>
                                                 </div>
                                             </label>
-                                            {selectedItem.category === 'Sides' && (
+                                            {itemToRender.category === 'Sides' && (
                                                 <label className="flex-1 cursor-pointer">
                                                     <input type="radio" name="size" className="peer sr-only" checked={itemOptions.size === 'Super Special'} onChange={() => setItemOptions({...itemOptions, size: 'Super Special'})} />
                                                     <div className="text-center p-3 rounded-2xl border-2 border-transparent bg-warmBg dark:bg-warmDarkBg peer-checked:border-pastelOrange peer-checked:bg-pastelOrange/20 peer-checked:shadow-[0_4px_15px_rgba(255,200,153,0.4)] dark:peer-checked:shadow-[0_4px_15px_rgba(217,119,54,0.3)] transition-all font-semibold hover:scale-[1.02] active:scale-95">
-                                                        {lang === 'th' ? 'โคตรพิเศษ' : 'Super'} <span className="block text-xs text-pastelOrange">+฿10</span>
+                                                        {lang === 'th' ? 'โคตรพิเศษ' : 'Super'} <span className="block text-xs font-bold text-pastelOrangeDark dark:text-pastelOrange">+฿10</span>
                                                     </div>
                                                 </label>
                                             )}
@@ -863,17 +982,23 @@ export default function App({ Component, pageProps }) {
                                     </div>
                                 )}
                                 
-                                {selectedItem.category === 'Ramen' && (
+                                {itemToRender.category === 'Ramen' && (
                                     <div>
                                         <h4 className="font-bold mb-3">{lang === 'th' ? 'เพิ่มเติม' : 'Extras'}</h4>
                                         <label className="flex items-center justify-between p-4 rounded-2xl bg-warmBg dark:bg-warmDarkBg cursor-pointer border-2 border-transparent hover:border-pastelOrange/30 hover:scale-[1.02] active:scale-95 transition-all">
                                             <span className="font-semibold">{lang === 'th' ? 'ไข่ต้มยางมะตูม (+฿15)' : 'Soft Boiled Egg (+฿15)'}</span>
-                                            <input type="checkbox" className="w-5 h-5 accent-pastelOrange rounded-md cursor-pointer shadow-sm" checked={itemOptions.egg} onChange={(e) => setItemOptions({...itemOptions, egg: e.target.checked})} />
+                                            <input type="checkbox" className="w-5 h-5 accent-pastelOrange rounded-md cursor-pointer shadow-sm" checked={itemOptions.egg || false} onChange={(e) => setItemOptions({...itemOptions, egg: e.target.checked})} />
                                         </label>
+                                        {itemToRender.name === 'Tsukemen Dipping Noodles' && (
+                                            <label className="flex items-center justify-between p-4 mt-3 rounded-2xl bg-warmBg dark:bg-warmDarkBg cursor-pointer border-2 border-transparent hover:border-pastelOrange/30 hover:scale-[1.02] active:scale-95 transition-all">
+                                                <span className="font-semibold">{lang === 'th' ? 'เปลี่ยนเป็นซุปมิโซะ (+฿20)' : 'Change to Miso Soup (+฿20)'}</span>
+                                                <input type="checkbox" className="w-5 h-5 accent-pastelOrange rounded-md cursor-pointer shadow-sm" checked={itemOptions.misoSoup || false} onChange={(e) => setItemOptions({...itemOptions, misoSoup: e.target.checked})} />
+                                            </label>
+                                        )}
                                     </div>
                                 )}
                                 
-                                {selectedItem.name === 'Karaage Chicken' && (
+                                {itemToRender.name === 'Karaage Chicken' && (
                                     <div>
                                         <h4 className="font-bold mb-3 flex items-center justify-between">
                                             {lang === 'th' ? 'ซอส' : 'Sauce'}
@@ -895,7 +1020,39 @@ export default function App({ Component, pageProps }) {
                                     </div>
                                 )}
 
-                                {selectedItem.category === 'Drinks' && (
+                                {itemToRender.isSpicy && (
+                                    <div>
+                                        <h4 className="font-bold mb-3 flex items-center justify-between">
+                                            {lang === 'th' ? 'ระดับความเผ็ด' : 'Spicy Level'}
+                                        </h4>
+                                        <div className="grid grid-cols-5 gap-1 sm:gap-2">
+                                            {[0, 1, 2, 3, 4].map(level => {
+                                                const labelEn = level === 0 ? 'No Spicy' : `Lv.${level}`;
+                                                const labelTh = level === 0 ? 'ไม่เผ็ด' : `Lv.${level}`;
+                                                return (
+                                                    <label key={`spicy-${level}`} className="cursor-pointer">
+                                                        <input type="radio" name="spicyLevel" className="peer sr-only" checked={itemOptions.spicyLevel === level} onChange={() => {
+                                                            setItemOptions({...itemOptions, spicyLevel: level});
+                                                            if (level > 0) {
+                                                                setShakeLevel(level);
+                                                                setIsShaking(false);
+                                                                setTimeout(() => setIsShaking(true), 10);
+                                                                setTimeout(() => setIsShaking(false), 410);
+                                                            }
+                                                        }} />
+                                                        <div className="text-center py-2 rounded-xl border-2 border-transparent bg-warmBg dark:bg-warmDarkBg peer-checked:border-red-500 peer-checked:bg-red-500/10 peer-checked:text-red-500 transition-all font-bold text-[9px] sm:text-[11px] hover:scale-[1.05] active:scale-95 flex flex-col items-center gap-0.5 sm:gap-1 h-full justify-center">
+                                                            <i className={`ph-fill ph-fire text-sm sm:text-base ${level > 0 ? (level > 2 ? 'text-red-600' : 'text-orange-500') : 'opacity-30 text-gray-500'}`}></i>
+                                                            <span className="leading-tight">{lang === 'th' ? labelTh : labelEn}</span>
+                                                            {level >= 3 && <span className="text-[8px] sm:text-[9px] text-red-500 font-black mt-[-2px]">+฿5</span>}
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {itemToRender.category === 'Drinks' && (
                                     <div>
                                         <h4 className="font-bold mb-3 flex items-center justify-between">
                                             {lang === 'th' ? 'ระดับความหวาน' : 'Sweetness'}
@@ -914,14 +1071,30 @@ export default function App({ Component, pageProps }) {
                                     </div>
                                 )}
                             </div>
+                            
+                            <div className="mt-6">
+                                <h4 className="font-bold mb-3 flex items-center justify-between">
+                                    {lang === 'th' ? 'หมายเหตุพิเศษ' : 'Special Instructions'}
+                                    <span className="text-xs font-normal opacity-50 bg-textDark/10 dark:bg-white/10 px-2 py-0.5 rounded-full">{lang === 'th' ? 'ไม่บังคับ' : 'Optional'}</span>
+                                </h4>
+                                <input 
+                                    type="text" 
+                                    placeholder={lang === 'th' ? 'เช่น ไม่ใส่ผัก...' : 'e.g. No vegetables...'}
+                                    value={itemOptions.specialInstructions || ''}
+                                    onChange={(e) => setItemOptions({...itemOptions, specialInstructions: e.target.value})}
+                                    className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange transition-all text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
-                            <button 
-                                onClick={() => addToCart(selectedItem, itemOptions, selectedItem.isEditingCartItemId)}
-                                className="w-full mt-8 bg-pastelOrange dark:bg-darkAccent text-textDark dark:text-textLight py-4 rounded-2xl font-bold text-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
-                            >
-                                <i className={selectedItem.isEditingCartItemId ? "ph-bold ph-pencil-simple" : "ph-bold ph-plus"}></i> 
-                                {selectedItem.isEditingCartItemId ? (lang === 'th' ? 'อัปเดตรายการ' : 'Update Item') : (lang === 'th' ? 'เพิ่มลงในตะกร้า' : 'Add to Order')}
-                            </button>
+                    <div className="p-4 md:p-6 pt-3 md:pt-4 border-t border-textDark/5 dark:border-white/5 shrink-0 bg-inherit shadow-[0_-4px_15px_rgba(0,0,0,0.03)] dark:shadow-none">
+                            <AnimatedPriceButton 
+                                price={currentModalPrice} 
+                                lang={lang} 
+                                isEditing={itemToRender.isEditingCartItemId} 
+                                onClick={() => addToCart(itemToRender, itemOptions, itemToRender.isEditingCartItemId)} 
+                            />
                         </div>
                     </div>
                 )}

@@ -28,7 +28,7 @@ export default function Menu({ menuItems, addToCart, setSelectedItem, setItemOpt
     return (
         <div key={lang} className="animate-[fadeIn_0.5s_ease-in-out]">
             <Head>
-                <title>{t('menu')} | Ramen Aroy</title>
+                <title>{`${t('menu')} | Ramen Aroy`}</title>
             </Head>
             
             <div className="pt-8">
@@ -69,14 +69,14 @@ export default function Menu({ menuItems, addToCart, setSelectedItem, setItemOpt
                                 {lang === 'th' ? 'ไม่พบเมนู' : 'No menu items found.'}
                             </div>
                         ) : (
-                            filteredMenuItems.map(item => (
+                            filteredMenuItems.map((item, idx) => (
                                 <div 
                                     key={item._id} 
-                                    onClick={() => { setSelectedItem(item); setItemOptions({ size: 'Normal', egg: false, sweetness: '100%' }); }}
+                                    onClick={() => { setSelectedItem(item); setItemOptions({ size: 'Normal', egg: false, sweetness: '100%', sauce: 'Karaage', specialInstructions: '', spicyLevel: 0, misoSoup: false }); }}
                                     className="cursor-pointer group bg-cardLight dark:bg-cardDark rounded-2xl md:rounded-3xl overflow-hidden shadow-soft dark:shadow-softDark hover:-translate-y-1 hover:shadow-lg transition-all duration-300 border border-transparent dark:border-white/5 flex flex-col"
                                 >
                                 <div className="relative h-32 md:h-48 overflow-hidden shrink-0">
-                                    <Image src={item.image_url} alt={item.name} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" />
+                                    <Image src={item.image_url} alt={item.name} fill priority={idx < 4} className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" />
                                     <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 dark:bg-black/50 backdrop-blur-sm px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-bold z-10 shadow-sm">
                                         ฿{item.price}
                                     </div>

@@ -37,7 +37,7 @@ export default function Home({ menuItems, lang, t }) {
     return (
         <div key={lang} className="animate-[fadeIn_0.5s_ease-in-out]">
             <Head>
-                <title>{t('home')} | Ramen Aroy</title>
+                <title>{`${t('home')} | Ramen Aroy`}</title>
             </Head>
 
             {/* Hero Section */}
