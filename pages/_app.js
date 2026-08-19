@@ -425,7 +425,7 @@ export default function App({ Component, pageProps }) {
             const endpoint = isLoginMode ? '/api/login' : '/api/signup';
             const body = isLoginMode 
                 ? { identifier: loginEmail, password: loginPassword }
-                : { email: loginEmail, password: loginPassword, name: signupName };
+                : { email: loginEmail, password: loginPassword, name: "New User" };
                 
             const res = await fetch(endpoint, {
                 method: 'POST',
@@ -995,9 +995,6 @@ export default function App({ Component, pageProps }) {
                                     <p><strong>Email:</strong> {lang === 'th' ? 'เช่น xxx@xxmail.xxx (ต้องมี @ และโดเมน ห้ามเว้นวรรค)' : 'e.g. xxx@xxmail.xxx (requires @, domain, no spaces)'}</p>
                                     <p><strong>Password:</strong> {lang === 'th' ? 'ยาว 4-12 ตัว, ภาษาอังกฤษ (A-Z, a-z), ตัวเลข (อย่างน้อย 1 ตัว) และเครื่องหมาย @ . _ - เท่านั้น (ห้ามเว้นวรรค)' : '4 to 12 characters. A-Z, a-z, 0-9 (at least 1), and @ . _ - only (no spaces)'}</p>
                                 </div>
-                                {!isLoginMode && (
-                                    <input type="text" required value={signupName} onChange={e => setSignupName(e.target.value)} placeholder={lang === 'th' ? "ชื่อผู้ใช้ (Username)" : "Username"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
-                                )}
                                 <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder={lang === 'th' ? "เช่น xxx@xxmail.xxx (ห้ามเว้นวรรค)" : "e.g. xxx@xxmail.xxx (No spaces)"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
                                 <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder={lang === 'th' ? "รหัสผ่าน: 4-12 ตัว, A-Z, a-z, 0-9, @ . _ - (ห้ามเว้นวรรค)" : "Password: 4-12 chars, A-Z, a-z, 0-9, @ . _ - (no spaces)"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
                                 
