@@ -1006,7 +1006,9 @@ export default function App({ Component, pageProps }) {
                                 </button>
                                 
                                 <button type="button" onClick={() => setIsLoginMode(!isLoginMode)} className="w-full text-sm font-bold opacity-70 hover:opacity-100 hover:text-pastelOrangeDark dark:hover:text-pastelOrange transition-colors mt-2">
-                                    {isLoginMode ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                                    {isLoginMode 
+                                        ? (lang === 'th' ? "ยังไม่มีบัญชีใช่ไหม? Sign up" : "Don't have an account? Sign up") 
+                                        : (lang === 'th' ? "มีบัญชีอยู่แล้วใช่ไหม? Sign in" : "Already have an account? Sign in")}
                                 </button>
                             </form>
                         ) : (
