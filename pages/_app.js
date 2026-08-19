@@ -116,6 +116,7 @@ export default function App({ Component, pageProps }) {
     const [loginPassword, setLoginPassword] = useState('');
     const [signupName, setSignupName] = useState('');
     const [isLoginMode, setIsLoginMode] = useState(true);
+    const [showPassword, setShowPassword] = useState(false);
     const [isUploadingPortrait, setIsUploadingPortrait] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState('');
@@ -1004,7 +1005,12 @@ export default function App({ Component, pageProps }) {
                                     <p><strong>Password:</strong> {lang === 'th' ? 'ยาว 4-12 ตัว, ภาษาอังกฤษ (A-Z, a-z), ตัวเลข (อย่างน้อย 1 ตัว) และเครื่องหมาย @ . _ - เท่านั้น (ห้ามเว้นวรรค)' : '4 to 12 characters. A-Z, a-z, 0-9 (at least 1), and @ . _ - only (no spaces)'}</p>
                                 </div>
                                 <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder={lang === 'th' ? "เช่น xxx@xxmail.xxx (ห้ามเว้นวรรค)" : "e.g. xxx@xxmail.xxx (No spaces)"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
-                                <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder={lang === 'th' ? "รหัสผ่าน: 4-12 ตัว, A-Z, a-z, 0-9, @ . _ - (ห้ามเว้นวรรค)" : "Password: 4-12 chars, A-Z, a-z, 0-9, @ . _ - (no spaces)"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
+                                <div className="relative">
+                                    <input type={showPassword ? 'text' : 'password'} required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder={lang === 'th' ? "รหัสผ่าน: 4-12 ตัว, A-Z, a-z, 0-9, @ . _ - (ห้ามเว้นวรรค)" : "Password: 4-12 chars, A-Z, a-z, 0-9, @ . _ - (no spaces)"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm pr-12" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <i className={`ph-bold ${showPassword ? 'ph-eye-slash' : 'ph-eye'} text-xl`}></i>
+                                    </button>
+                                </div>
                                 
                                 <button type="submit" className="w-full mt-4 bg-pastelOrange text-textDark py-4 rounded-2xl font-bold hover:opacity-90 active:scale-95 transition-all">
                                     {isLoginMode ? 'Sign In' : 'Sign Up'}
