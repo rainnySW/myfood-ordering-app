@@ -31,7 +31,9 @@ export default async function handler(req, res) {
 
     try {
       const user = await authenticateUser(identifier, password);
-      if (user) {
+      if (user && user.error) {
+        res.status(401).json({ error: user.error, code: user.error === 'User not found' ? 'ERR_USER_NOT_FOUND' : 'ERR_INCORRECT_PASSWORD' });
+      } else if (user) {
         res.status(200).json(user);
       } else {
         res.status(401).json({ error: 'Invalid email or password', code: 'ERR_AUTH_FAILED' });

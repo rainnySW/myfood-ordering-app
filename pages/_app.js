@@ -464,7 +464,13 @@ export default function App({ Component, pageProps }) {
                 setLoginPassword(''); // clear password for safety
             } else {
                 const errorData = await res.json();
-                showToast((errorData.error || 'Invalid credentials.') + (errorData.code ? ` [${errorData.code}]` : ''));
+                let errMsg = errorData.error || 'Invalid credentials.';
+                if (lang === 'th') {
+                    if (errorData.code === 'ERR_USER_NOT_FOUND') errMsg = 'ไม่พบบัญชีผู้ใช้นี้ (ไม่พบอีเมล)';
+                    if (errorData.code === 'ERR_INCORRECT_PASSWORD') errMsg = 'รหัสผ่านไม่ถูกต้อง';
+                    if (errorData.code === 'ERR_AUTH_FAILED') errMsg = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                }
+                showToast(errMsg + (errorData.code ? ` [${errorData.code}]` : ''));
             }
         } catch (error) {
             console.error('Auth error:', error);
