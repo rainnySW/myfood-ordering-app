@@ -814,9 +814,9 @@ export default function App({ Component, pageProps }) {
             </div>
 
             {/* Cart Modal Overlay */}
-            <div className={`fixed inset-0 bg-textDark/20 dark:bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div onClick={() => setIsCartOpen(false)} className={`fixed inset-0 bg-textDark/20 dark:bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 {/* Slide-in Panel */}
-                <div className={`absolute bottom-0 md:top-0 md:bottom-auto md:right-0 w-full md:w-[450px] h-[85vh] md:h-screen bg-cardLight dark:bg-cardDark md:rounded-l-3xl rounded-t-3xl md:rounded-tr-none shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isCartOpen ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full'}`}>
+                <div onClick={(e) => e.stopPropagation()} className={`absolute bottom-0 md:top-0 md:bottom-auto md:right-0 w-full md:w-[450px] h-[85vh] md:h-screen bg-cardLight dark:bg-cardDark md:rounded-l-3xl rounded-t-3xl md:rounded-tr-none shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isCartOpen ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full'}`}>
                     
                     {/* Header */}
                     <div className="flex items-center justify-between p-6 border-b border-warmBg dark:border-white/5">
@@ -997,8 +997,8 @@ export default function App({ Component, pageProps }) {
             </div>
 
             {/* User Panel (Mocked to Real Auth) */}
-            <div className={`fixed inset-0 bg-textDark/20 dark:bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${isUserPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                <div className={`absolute top-0 left-0 w-full md:w-[400px] h-screen bg-cardLight dark:bg-cardDark md:rounded-r-3xl shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isUserPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div onClick={() => setIsUserPanelOpen(false)} className={`fixed inset-0 bg-textDark/20 dark:bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${isUserPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div onClick={(e) => e.stopPropagation()} className={`absolute top-0 left-0 w-full md:w-[400px] h-screen bg-cardLight dark:bg-cardDark md:rounded-r-3xl shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isUserPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="flex items-center justify-between p-6 border-b border-warmBg dark:border-white/5">
                         <h2 className="text-2xl font-bold">{user ? (lang === 'th' ? 'โปรไฟล์ของฉัน' : 'My Profile') : (isLoginMode ? (lang === 'th' ? 'ยินดีต้อนรับกลับ' : 'Welcome Back') : (lang === 'th' ? 'สร้างบัญชี' : 'Create Account'))}</h2>
                         <button onClick={() => setIsUserPanelOpen(false)} className="p-2 bg-warmBg dark:bg-warmDarkBg rounded-full hover:scale-110 transition-transform">
