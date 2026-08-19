@@ -64,7 +64,7 @@ export default function App({ Component, pageProps }) {
 
     // Global State
     const [isDark, setIsDark] = useState(false);
-    const [lang, setLang] = useState('en');
+    const [lang, setLang] = useState('th');
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
