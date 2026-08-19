@@ -383,8 +383,44 @@ export default function App({ Component, pageProps }) {
     const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
+    const validateEmail = (email) => {
+        if (!email || email.length < 5 || email.length > 50) return 'ERR_EMAIL_LENGTH';
+        if (email.includes(' ')) return 'ERR_EMAIL_SPACE';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) return 'ERR_EMAIL_FORMAT';
+        return null;
+    };
+
+    const validatePassword = (pwd) => {
+        if (!pwd) return 'ERR_PWD_EMPTY';
+        if (pwd.length < 4 || pwd.length > 12) return 'ERR_PWD_LENGTH';
+        if (pwd.includes(' ')) return 'ERR_PWD_SPACE';
+        const validCharsRegex = /^[a-zA-Z0-9.\-_@]+$/;
+        if (!validCharsRegex.test(pwd)) return 'ERR_PWD_INVALID_CHARS';
+        const numberRegex = /[0-9]/;
+        if (!numberRegex.test(pwd)) return 'ERR_PWD_NO_NUMBER';
+        return null;
+    };
+
     const handleLogin = async (e) => {
         e.preventDefault();
+        
+        const emailErr = validateEmail(loginEmail);
+        if (emailErr) {
+            if (isLoginMode) {
+                alert(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email ให้ถูกต้อง [${emailErr}]` : `Something wrong: please write down email correctly [${emailErr}]`);
+            } else {
+                alert(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email [${emailErr}]` : `Error: Please write down email correctly [${emailErr}]`);
+            }
+            return;
+        }
+
+        const pwdErr = validatePassword(loginPassword);
+        if (pwdErr) {
+            alert(lang === 'th' ? `รหัสผ่านไม่ถูกต้องตามเงื่อนไข (ยาว 4-12 ตัว, ต้องเป็นภาษาอังกฤษ มีตัวเลข ห้ามเว้นวรรค และใช้ได้แค่ @ . _ -) [${pwdErr}]` : `Invalid password format (4-12 chars, A-Z, a-z, at least 1 number, no spaces, only @ . _ - allowed) [${pwdErr}]`);
+            return;
+        }
+
         try {
             const endpoint = isLoginMode ? '/api/login' : '/api/signup';
             const body = isLoginMode 
@@ -417,7 +453,7 @@ export default function App({ Component, pageProps }) {
                 setLoginPassword(''); // clear password for safety
             } else {
                 const errorData = await res.json();
-                alert(errorData.error || 'Invalid credentials.');
+                alert((errorData.error || 'Invalid credentials.') + (errorData.code ? ` [${errorData.code}]` : ''));
             }
         } catch (error) {
             console.error('Auth error:', error);
@@ -955,11 +991,15 @@ export default function App({ Component, pageProps }) {
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <p className="text-center opacity-70 mb-8">{isLoginMode ? (lang === 'th' ? 'เข้าสู่ระบบเพื่อสั่งอาหารได้อย่างรวดเร็ว' : 'Sign in for fast checkout.') : (lang === 'th' ? 'เข้าร่วมกับเราเพื่อประสบการณ์แสนอบอุ่น' : 'Join us for a cozy experience.')}</p>
                                 
+                                <div className="text-xs opacity-70 mb-4 bg-warmBg dark:bg-warmDarkBg p-3 rounded-xl space-y-1">
+                                    <p><strong>Email:</strong> e.g. xxx@xxmail.xxx (requires @, domain, no spaces)</p>
+                                    <p><strong>Password:</strong> 4 to 12 characters. A-Z, a-z, 0-9 (at least 1), and @ . _ - only (no spaces)</p>
+                                </div>
                                 {!isLoginMode && (
                                     <input type="text" required value={signupName} onChange={e => setSignupName(e.target.value)} placeholder="Username" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
                                 )}
-                                <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder={isLoginMode ? "Email or Username" : "Email Address"} className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
-                                <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange" />
+                                <input type="text" required={!isLoginMode} value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="e.g. xxx@xxmail.xxx (No spaces)" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
+                                <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password: 4-12 chars, A-Z, a-z, 0-9, @ . _ - (no spaces)" className="w-full bg-warmBg dark:bg-warmDarkBg px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-pastelOrangeDark dark:focus:ring-pastelOrange text-sm" />
                                 
                                 <button type="submit" className="w-full mt-4 bg-pastelOrange text-textDark py-4 rounded-2xl font-bold hover:opacity-90 active:scale-95 transition-all">
                                     {isLoginMode ? 'Sign In' : 'Sign Up'}
