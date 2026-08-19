@@ -419,16 +419,16 @@ export default function App({ Component, pageProps }) {
         const emailErr = validateEmail(loginEmail);
         if (emailErr) {
             if (isLoginMode) {
-            showToast(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email ให้ถูกต้อง [${emailErr}]` : `Something wrong: please write down email correctly [${emailErr}]`);
+                showToast(lang === 'th' ? `รูปแบบอีเมลไม่ถูกต้อง [${emailErr}]` : `Invalid email format [${emailErr}]`);
             } else {
-            showToast(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email [${emailErr}]` : `Error: Please write down email correctly [${emailErr}]`);
+                showToast(lang === 'th' ? `รูปแบบอีเมลไม่ถูกต้อง [${emailErr}]` : `Invalid email format [${emailErr}]`);
             }
             return;
         }
 
         const pwdErr = validatePassword(loginPassword);
         if (pwdErr) {
-            showToast(lang === 'th' ? `รหัสผ่านไม่ถูกต้องตามเงื่อนไข (ยาว 4-12 ตัว, ต้องเป็นภาษาอังกฤษ มีตัวเลข ห้ามเว้นวรรค และใช้ได้แค่ @ . _ -) [${pwdErr}]` : `Invalid password format (4-12 chars, A-Z, a-z, at least 1 number, no spaces, only @ . _ - allowed) [${pwdErr}]`);
+            showToast(lang === 'th' ? `รูปแบบรหัสผ่านไม่ถูกต้อง (ยาว 4-12 ตัว, ภาษาอังกฤษ, และตัวเลข) [${pwdErr}]` : `Invalid Password Format (4-12 chars, A-Z, and Number) [${pwdErr}]`);
             return;
         }
 
