@@ -130,6 +130,16 @@ export default function App({ Component, pageProps }) {
     
     const [lastOrder, setLastOrder] = useState(null);
     const [pageOpacity, setPageOpacity] = useState('opacity-100');
+    
+    const [toast, setToast] = useState({ message: '', visible: false, type: 'error' });
+    const toastTimerRef = useRef(null);
+    const showToast = (message, type = 'error') => {
+        setToast({ message, visible: true, type });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            setToast(prev => ({ ...prev, visible: false }));
+        }, 4000);
+    };
 
     // Page Transition
     useEffect(() => {
@@ -409,16 +419,16 @@ export default function App({ Component, pageProps }) {
         const emailErr = validateEmail(loginEmail);
         if (emailErr) {
             if (isLoginMode) {
-                alert(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email ให้ถูกต้อง [${emailErr}]` : `Something wrong: please write down email correctly [${emailErr}]`);
+            showToast(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email ให้ถูกต้อง [${emailErr}]` : `Something wrong: please write down email correctly [${emailErr}]`);
             } else {
-                alert(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email [${emailErr}]` : `Error: Please write down email correctly [${emailErr}]`);
+            showToast(lang === 'th' ? `ข้อมูลผิดพลาด: กรุณากรอก email [${emailErr}]` : `Error: Please write down email correctly [${emailErr}]`);
             }
             return;
         }
 
         const pwdErr = validatePassword(loginPassword);
         if (pwdErr) {
-            alert(lang === 'th' ? `รหัสผ่านไม่ถูกต้องตามเงื่อนไข (ยาว 4-12 ตัว, ต้องเป็นภาษาอังกฤษ มีตัวเลข ห้ามเว้นวรรค และใช้ได้แค่ @ . _ -) [${pwdErr}]` : `Invalid password format (4-12 chars, A-Z, a-z, at least 1 number, no spaces, only @ . _ - allowed) [${pwdErr}]`);
+            showToast(lang === 'th' ? `รหัสผ่านไม่ถูกต้องตามเงื่อนไข (ยาว 4-12 ตัว, ต้องเป็นภาษาอังกฤษ มีตัวเลข ห้ามเว้นวรรค และใช้ได้แค่ @ . _ -) [${pwdErr}]` : `Invalid password format (4-12 chars, A-Z, a-z, at least 1 number, no spaces, only @ . _ - allowed) [${pwdErr}]`);
             return;
         }
 
@@ -454,11 +464,11 @@ export default function App({ Component, pageProps }) {
                 setLoginPassword(''); // clear password for safety
             } else {
                 const errorData = await res.json();
-                alert((errorData.error || 'Invalid credentials.') + (errorData.code ? ` [${errorData.code}]` : ''));
+                showToast((errorData.error || 'Invalid credentials.') + (errorData.code ? ` [${errorData.code}]` : ''));
             }
         } catch (error) {
             console.error('Auth error:', error);
-            alert('Something went wrong. Please try again.');
+            showToast('Something went wrong. Please try again.');
         }
     };
 
@@ -485,7 +495,7 @@ export default function App({ Component, pageProps }) {
             const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
     
             if (!cloudName || !uploadPreset) {
-                alert('Cloudinary is not configured yet! Please check PROJECT_SUMMARY.md for setup instructions.');
+                showToast('Cloudinary is not configured yet! Please check PROJECT_SUMMARY.md for setup instructions.');
                 setIsUploadingPortrait(false);
                 return;
             }
@@ -511,14 +521,14 @@ export default function App({ Component, pageProps }) {
                     setUser(prev => ({ ...prev, ...updatedUser }));
                 } else {
                     console.error("Update failed:", await updateRes.text());
-                    alert("Failed to update profile locally.");
+                    showToast("Failed to update profile locally.");
                 }
             } else {
-                alert('Upload failed: ' + (data.error?.message || 'Unknown error'));
+                showToast('Upload failed: ' + (data.error?.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Portrait upload error:', error);
-            alert('Upload failed. Check console for details.');
+            showToast('Upload failed. Check console for details.');
         } finally {
             setIsUploadingPortrait(false);
         }
@@ -1316,6 +1326,17 @@ export default function App({ Component, pageProps }) {
                         </div>
                     </div>
                 </div>
+            </div>
+            {/* Custom Toast Notification */}
+            <div 
+                className={`fixed top-4 md:top-10 left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ease-in-out px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 w-[90%] md:w-auto max-w-md pointer-events-none ${
+                    toast.visible 
+                        ? 'opacity-100 translate-y-0' 
+                        : 'opacity-0 -translate-y-10'
+                } ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}
+            >
+                <i className={`ph-bold text-2xl shrink-0 ${toast.type === 'error' ? 'ph-warning-circle' : 'ph-check-circle'}`}></i>
+                <span className="text-sm font-medium leading-relaxed">{toast.message}</span>
             </div>
         </div>
     );
