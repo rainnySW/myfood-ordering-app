@@ -664,6 +664,14 @@ export default function App({ Component, pageProps }) {
                 .animate-bounce-char {
                     animation: bounce-char 0.5s ease-in-out forwards;
                 }
+                
+                @keyframes slide-up-fade {
+                    0% { transform: translateY(15px); opacity: 0; }
+                    100% { transform: translateY(0); opacity: 1; }
+                }
+                .animate-slide-up-fade {
+                    animation: slide-up-fade 0.3s ease-out forwards;
+                }
             `}</style>
             {/* Top Navigation (PC Only) */}
             <nav className="hidden md:flex sticky top-0 z-40 backdrop-blur-md bg-warmBg/80 dark:bg-warmDarkBg/80 border-b border-pastelOrange/20 dark:border-white/5 transition-colors duration-500">
@@ -988,7 +996,7 @@ export default function App({ Component, pageProps }) {
                     </div>
                     <div className="flex-1 overflow-y-auto p-6">
                         {!user ? (
-                            <form onSubmit={handleLogin} className="space-y-4">
+                            <form key={isLoginMode ? 'login' : 'register'} onSubmit={handleLogin} className="space-y-4 animate-slide-up-fade">
                                 <p className="text-center opacity-70 mb-8">{isLoginMode ? (lang === 'th' ? 'เข้าสู่ระบบเพื่อสั่งอาหารได้อย่างรวดเร็ว' : 'Sign in for fast checkout.') : (lang === 'th' ? 'เข้าร่วมกับเราเพื่อประสบการณ์แสนอบอุ่น' : 'Join us for a cozy experience.')}</p>
                                 
                                 <div className="text-xs opacity-70 mb-4 bg-warmBg dark:bg-warmDarkBg p-3 rounded-xl space-y-1">
